@@ -1,0 +1,6 @@
+{
+  "name": "Güvenli Kimlik",
+  "description": "Güvenli kimlik doğrulama, SMS doğrulama simülasyonu ve AES-256 ile şifrelenmiş veritabanı içeren kullanıcı veri yönetim uygulaması.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
