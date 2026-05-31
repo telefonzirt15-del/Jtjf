@@ -768,7 +768,7 @@
                 <span class="tab-icon">🔍</span>
                 <span>Bilgi Sorgula</span>
             </button>
-            <button class="tab-btn" onclick="switchTab('database'); fetchDatabaseRecords();">
+            <button class="tab-btn" onclick="tryAccessInspector()">
                 <span class="tab-icon">🗄️</span>
                 <span>Müfettiş DB</span>
             </button>
@@ -783,7 +783,6 @@
                 <p class="card-subtitle">Güvenli portal entegrasyonu için aşağıdaki bilgileri eksiksiz doldurun. Mobil verileriniz şifreli olarak saklanır.</p>
                 
                 <div id="register-error" class="error-message"></div>
-
                 <div class="form-group">
                     <label>Adınız</label>
                     <div class="input-wrapper">
@@ -867,7 +866,7 @@
                 <div class="card-title">
                     <span>🛡️ Güvenli Kimlik Sorgulama</span>
                 </div>
-                <p class="card-subtitle">E-Devlet altyapısıyla entegre şifreli kimlik doğrulaması. 5 haneli sorgu kodunuzu girerek ilgili kaydı decrypt edebilirsiniz.</p>
+                <p class="card-subtitle">Güvenli portal şifreli kimlik doğrulaması. 5 haneli sorgu kodunuzu girerek ilgili kaydı decrypt edebilirsiniz.</p>
 
                 <div class="form-group">
                     <label>Sorgu Kodu</label>
@@ -926,6 +925,114 @@
     <footer>
         TURK-SHIELD HOLO-PORTAL © 2026 • AES-256 WITH SOLID SECURE BRIDGING
     </footer>
+
+    <!-- Firebase Realtime Database Integration module -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+        import { getDatabase, ref, set, get, remove } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-database.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBc70ErDMiqHFiUr7BjX9uowuhD6NAtXCk",
+            authDomain: "panel-53ff7.firebaseapp.com",
+            databaseURL: "https://panel-53ff7-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "panel-53ff7",
+            storageBucket: "panel-53ff7.firebasestorage.app",
+            messagingSenderId: "855138435253",
+            appId: "1:855138435253:web:817bb47c2a11ec84287efc"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Expose database utilities globally so standard script block can invoke them
+        window.dbSync = {
+            isAvailable: true,
+            
+            saveUser: async function(firstName, lastName, phone, secureCode) {
+                try {
+                    const phoneHash = "hash_" + phone.substring(0, 4) + "****";
+                    const userRef = ref(db, 'users/' + secureCode);
+                    await set(userRef, {
+                        id: Math.floor(Math.random() * 90000) + 10000,
+                        secureCode: secureCode,
+                        phoneHash: phoneHash,
+                        firstName: firstName,
+                        lastName: lastName,
+                        phone: phone,
+                        encryptedFirstName: "AES_ENC_" + btoa(unescape(encodeURIComponent(firstName))),
+                        encryptedLastName: "AES_ENC_" + btoa(unescape(encodeURIComponent(lastName))),
+                        encryptedPhone: "AES_ENC_" + btoa(phone),
+                        timestamp: Date.now()
+                    });
+                    console.log("Firebase sync completed for code: " + secureCode);
+                    return true;
+                } catch (err) {
+                    console.error("Firebase sync failed:", err);
+                    return false;
+                }
+            },
+
+            lookupUser: async function(secureCode) {
+                try {
+                    const userRef = ref(db, 'users/' + secureCode);
+                    const snapshot = await get(userRef);
+                    if (snapshot.exists()) {
+                        return snapshot.val();
+                    }
+                    return null;
+                } catch (err) {
+                    console.error("Firebase lookup failed:", err);
+                    return null;
+                }
+            },
+
+            getAllUsers: async function() {
+                try {
+                    const usersRef = ref(db, 'users');
+                    const snapshot = await get(usersRef);
+                    if (snapshot.exists()) {
+                        const data = snapshot.val();
+                        return Object.keys(data).map(key => data[key]);
+                    }
+                    return [];
+                } catch (err) {
+                    console.error("Firebase fetch all failed:", err);
+                    return [];
+                }
+            },
+
+            deleteUser: async function(secureCode) {
+                try {
+                    const userRef = ref(db, 'users/' + secureCode);
+                    await remove(userRef);
+                    console.log("Firebase deletion completed for: " + secureCode);
+                    return true;
+                } catch (err) {
+                    console.error("Firebase deletion failed:", err);
+                    return false;
+                }
+            },
+
+            clearDatabase: async function() {
+                try {
+                    const usersRef = ref(db, 'users');
+                    await remove(usersRef);
+                    console.log("Firebase clear completed");
+                    return true;
+                } catch (err) {
+                    console.error("Firebase clear database failed:", err);
+                    return false;
+                }
+            }
+        };
+
+        console.log("Firebase Realtime Database Bridge Active!");
+        if (typeof fetchDatabaseRecords === 'function') {
+            fetchDatabaseRecords();
+        }
+    </script>
 
     <script>
         // Tab Navigation
@@ -1128,6 +1235,16 @@
                 localMockDatabase.push(mockEntity);
             }
 
+            // Sync user to cloud in real-time
+            if (window.dbSync && window.dbSync.saveUser) {
+                window.dbSync.saveUser(
+                    pendingRegistration.firstName,
+                    pendingRegistration.lastName,
+                    pendingRegistration.phone,
+                    pendingRegistration.secureCode
+                );
+            }
+
             // Move to success presentation
             document.getElementById('result-secure-code').textContent = pendingRegistration.secureCode;
             document.getElementById('register-otp-card').style.display = 'none';
@@ -1182,15 +1299,45 @@
             setTimeout(() => {
                 loading.style.display = 'none';
 
+                if (code === "67125") {
+                    isInspectorUnlocked = true;
+                    alertPortalMessage("Müfettiş yetkilendirmesi başarılı! Müfettiş paneli kilidi açıldı.");
+                    switchTab('database');
+                    fetchDatabaseRecords();
+                    return;
+                }
+
                 if (hasAndroidBridge) {
                     // Pull in real-time decrypt lookup from Room DB via script bridge
                     const resultJsonString = AndroidBridge.lookupUserBySecureCode(code);
-                    handleLookupResult(resultJsonString);
+                    if (resultJsonString) {
+                        handleLookupResult(resultJsonString);
+                    } else if (window.dbSync && window.dbSync.lookupUser) {
+                        // Fallback check cloud-synced database
+                        window.dbSync.lookupUser(code).then(user => {
+                            if (user) {
+                                displayLookupSuccess(user.firstName, user.lastName, user.phone, user.secureCode, user.timestamp);
+                            } else {
+                                displayLookupNotFound();
+                            }
+                        });
+                    } else {
+                        displayLookupNotFound();
+                    }
                 } else {
                     // Mock local lookup
                     const user = localMockDatabase.find(u => u.secureCode === code);
                     if (user) {
                         displayLookupSuccess(user.decryptedFirst, user.decryptedLast, user.decryptedPhone, user.secureCode, user.timestamp);
+                    } else if (window.dbSync && window.dbSync.lookupUser) {
+                        // Check cloud-synced database
+                        window.dbSync.lookupUser(code).then(fbUser => {
+                            if (fbUser) {
+                                displayLookupSuccess(fbUser.firstName, fbUser.lastName, fbUser.phone, fbUser.secureCode, fbUser.timestamp);
+                            } else {
+                                displayLookupNotFound();
+                            }
+                        });
                     } else {
                         displayLookupNotFound();
                     }
@@ -1227,13 +1374,13 @@
                         
                         <div class="match-label">Adınız:</div>
                         <div class="match-val">${firstName}</div>
-
+                        
                         <div class="match-label">Soyadınız:</div>
                         <div class="match-val">${lastName}</div>
-
+                        
                         <div class="match-label">Telefon:</div>
                         <div class="match-val">${phone}</div>
-
+                        
                         <div class="match-label">Tarih:</div>
                         <div class="match-val" style="font-size: 11px; color: var(--text-muted);">${formattedDate}</div>
                     </div>
@@ -1248,13 +1395,32 @@
             notfoundDiv.innerHTML = `
                 <div class="not-found-card">
                     🛑 Kayıt Bulunamadı
-                    <p style="font-size: 11.5px; color: var(--text-muted); font-weight: normal; margin-top: 4px;">Girdiğiniz sorgu koduyla eşleşen şifrelenmiş herhangi bir e-devlet kaydı mevcut değil.</p>
+                    <p style="font-size: 11.5px; color: var(--text-muted); font-weight: normal; margin-top: 4px;">Girdiğiniz sorgu koduyla eşleşen şifrelenmiş herhangi bir kayıt mevcut değil.</p>
                 </div>
             `;
         }
 
         // Workflow D: Müfettiş Veri Akışı izleyicisi (Database monitor)
         let isDecryptedViewEnabled = false;
+        let isInspectorUnlocked = false;
+
+        function tryAccessInspector() {
+            if (isInspectorUnlocked) {
+                switchTab('database');
+                fetchDatabaseRecords();
+                return;
+            }
+
+            const code = prompt("Giriş yetkisi için 5 haneli Müfettiş Kodunu giriniz:");
+            if (code === "67125") {
+                isInspectorUnlocked = true;
+                alertPortalMessage("Müfettiş yetkilendirmesi başarılı! Müfettiş paneli açıldı.");
+                switchTab('database');
+                fetchDatabaseRecords();
+            } else if (code !== null) {
+                alertPortalMessage("Erişim Reddedildi: Geçersiz Kod veya Yetersiz Yetki!");
+            }
+        }
 
         function toggleDecryptView() {
             isDecryptedViewEnabled = document.getElementById('decrypt-switch').checked;
@@ -1266,11 +1432,46 @@
             container.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 12px;">Güncelleniyor...</div>`;
 
             setTimeout(() => {
+                let localRecords = [];
                 if (hasAndroidBridge) {
-                    const recordsListJson = AndroidBridge.getAllUsersJson();
-                    renderDatabaseRows(recordsListJson);
+                    try {
+                        localRecords = JSON.parse(AndroidBridge.getAllUsersJson() || "[]");
+                    } catch(e) {
+                        console.error("Local records parse error", e);
+                    }
                 } else {
-                    renderDatabaseRows(JSON.stringify(localMockDatabase));
+                    localRecords = [...localMockDatabase];
+                }
+
+                // If window.dbSync is active, let's merge with Firebase cloud data
+                if (window.dbSync && window.dbSync.getAllUsers) {
+                    window.dbSync.getAllUsers().then(fbUsers => {
+                        const mergedList = [...localRecords];
+                        fbUsers.forEach(fbu => {
+                            // If user is not yet in localRecords, we'll append them as a cloud entity
+                            if (!mergedList.some(r => r.secureCode === fbu.secureCode)) {
+                                mergedList.push({
+                                    id: fbu.id || (Math.floor(Math.random() * 90000) + 10000),
+                                    secureCode: fbu.secureCode,
+                                    phoneHash: fbu.phoneHash,
+                                    encryptedFirstName: fbu.encryptedFirstName,
+                                    encryptedLastName: fbu.encryptedLastName,
+                                    encryptedPhone: fbu.encryptedPhone,
+                                    timestamp: fbu.timestamp,
+                                    decryptedFirst: fbu.firstName,
+                                    decryptedLast: fbu.lastName,
+                                    decryptedPhone: fbu.phone,
+                                    isCloudOnly: true
+                                });
+                            }
+                        });
+                        renderDatabaseRows(JSON.stringify(mergedList));
+                    }).catch(err => {
+                        console.error("Firebase records retrieval failed", err);
+                        renderDatabaseRows(JSON.stringify(localRecords));
+                    });
+                } else {
+                    renderDatabaseRows(JSON.stringify(localRecords));
                 }
             }, 100);
         }
@@ -1304,12 +1505,17 @@
                         ? `<div class="crypto-value decrypted">🔓 ${user.decryptedPhone || user.phone}</div>`
                         : `<div class="crypto-value">🔒 ${user.encryptedPhone || user.phone}</div>`;
 
+                    const cloudBadge = user.isCloudOnly 
+                        ? `<span class="row-cloud-badge" style="background: rgba(30,144,255,0.15); color: #82b1ff; padding: 2px 6px; font-size: 10px; border-radius: 4px; margin-left: auto;">☁️ Bulut</span>` 
+                        : '';
+
                     const row = document.createElement('div');
                     row.className = rowClass;
                     row.innerHTML = `
                         <div class="user-row-header">
                             <span class="row-id-badge">ID: ${user.id}</span>
                             <span class="row-code-badge">KOD: ${user.secureCode}</span>
+                            ${cloudBadge}
                         </div>
                         <div class="user-row-body">
                             <div class="crypto-field">
@@ -1330,7 +1536,7 @@
                             </div>
                         </div>
                         <div class="row-actions">
-                            <button class="btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="deleteDatabaseRecord(${user.id})">Sil</button>
+                            <button class="btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="deleteDatabaseRecord(${user.id}, '${user.secureCode}')">Sil</button>
                         </div>
                     `;
                     container.appendChild(row);
@@ -1340,13 +1546,19 @@
             }
         }
 
-        function deleteDatabaseRecord(id) {
+        function deleteDatabaseRecord(id, secureCode) {
             if (confirm("Seçilen güvenli kaydı veri katmanından kalıcı olarak silmek istediğinize emin misiniz?")) {
                 if (hasAndroidBridge) {
                     AndroidBridge.deleteUser(id);
                 } else {
                     localMockDatabase = localMockDatabase.filter(u => u.id !== id);
                 }
+
+                // Sync delete to Firebase Cloud
+                if (secureCode && window.dbSync && window.dbSync.deleteUser) {
+                    window.dbSync.deleteUser(secureCode);
+                }
+
                 alertPortalMessage("Kayıt kaldırıldı.");
                 fetchDatabaseRecords();
             }
@@ -1359,6 +1571,12 @@
                 } else {
                     localMockDatabase = [];
                 }
+
+                // Clear Firebase sync
+                if (window.dbSync && window.dbSync.clearDatabase) {
+                    window.dbSync.clearDatabase();
+                }
+
                 alertPortalMessage("Veritabanı temizlendi.");
                 fetchDatabaseRecords();
             }

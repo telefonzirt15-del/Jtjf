@@ -144,7 +144,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     repository.registerUser(pendingFirstName, pendingLastName, pendingPhone, pendingSecureCode)
                     lastRegisteredCode = pendingSecureCode
                     currentScreenState = AuthScreenState.DASHBOARD
-                    triggerSystemPushToast("🎉 Doğrulama Başarılı! E-Devlet Sorgu Kodunuz: $pendingSecureCode")
+                    triggerSystemPushToast("🎉 Doğrulama Başarılı! Portal Sorgu Kodunuz: $pendingSecureCode")
                     // Reset registration state
                     firstNameInput = ""
                     lastNameInput = ""
