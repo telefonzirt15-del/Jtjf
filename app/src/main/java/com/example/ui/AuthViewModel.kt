@@ -46,7 +46,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     // Current Auth State
     var currentScreenState by mutableStateOf(AuthScreenState.REGISTRATION)
-        private set
 
     // Registration inputs
     var firstNameInput by mutableStateOf("")
@@ -70,7 +69,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     // Last registered code to show permanently on dashboard
     var lastRegisteredCode by mutableStateOf("")
-        private set
 
     // Search and lookup state (using the 5-digit secure code)
     var searchPhoneInput by mutableStateOf("")

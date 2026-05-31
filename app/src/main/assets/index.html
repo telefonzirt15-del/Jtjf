@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>TurkShield Güvenli Kimlik</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --surface-color: #121826;
+            --surface-hover: #1b2336;
+            --primary-color: #2563eb;
+            --primary-glow: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --success-color: #10b981;
+            --success-glow: #34d399;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --border-color: #1e293b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            overflow-x: hidden;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) 64px env(safe-area-inset-left);
+        }
+
+        /* Ambient background glow */
+        .ambient-glow {
+            position: fixed;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(37, 99, 235, 0.15) 0%, rgba(0,0,0,0) 70%);
+            top: -100px;
+            right: -100px;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .ambient-glow-bottom {
+            position: fixed;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, rgba(0,0,0,0) 70%);
+            bottom: -150px;
+            left: -150px;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Top Header */
+        header {
+            background-color: rgba(18, 24, 38, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-title-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .shield-logo {
+            width: 32px;
+            height: 32px;
+            color: var(--accent-cyan);
+            animation: pulse-glow 3s infinite ease-in-out;
+        }
+
+        header h1 {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            background: linear-gradient(135deg, var(--text-main) 30%, var(--accent-cyan) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .shield-status {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .shield-status::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--success-color);
+            box-shadow: 0 0 8px var(--success-glow);
+            animation: blink 1.5s infinite;
+        }
+
+        /* Main Container */
+        main {
+            padding: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Toast / SMS Notification */
+        .sms-notification {
+            background-color: #1e1e2e;
+            border: 1px solid var(--warning-color);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            animation: slide-down 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .sms-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .sms-title {
+            color: var(--warning-color);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sms-time {
+            color: var(--text-muted);
+            font-size: 11px;
+        }
+
+        .sms-text {
+            font-size: 13.5px;
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+
+        .sms-action-btn {
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid var(--warning-color);
+            color: var(--warning-color);
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s;
+        }
+
+        .sms-action-btn:hover {
+            background: rgba(245, 158, 11, 0.25);
+        }
+
+        /* Navigation Tab Bar */
+        .tab-bar {
+            display: flex;
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 12px 6px;
+            border-radius: 8px;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .tab-btn.active {
+            color: var(--text-main);
+            background-color: var(--surface-hover);
+            box-shadow: inset 0 0 1px rgba(255,255,255,0.1);
+        }
+
+        .tab-btn.active .tab-icon {
+            color: var(--accent-cyan);
+        }
+
+        .tab-icon {
+            font-size: 18px;
+            transition: transform 0.2s;
+        }
+
+        .tab-btn:hover .tab-icon {
+            transform: translateY(-1px);
+        }
+
+        /* Cards and Sections */
+        .card {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        .card-title {
+            color: var(--text-main);
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .card-subtitle {
+            color: var(--text-muted);
+            font-size: 12px;
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            color: var(--text-muted);
+            font-size: 16px;
+            pointer-events: none;
+        }
+
+        .input-control {
+            width: 100%;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 12px 14px 12px 40px;
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .input-control:focus {
+            border-color: var(--primary-glow);
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.25);
+        }
+
+        .error-message {
+            color: var(--error-color);
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #1d4ed8 100%);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            width: 100%;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-danger {
+            background-color: rgba(239, 68, 68, 0.15);
+            color: var(--error-color);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-danger:hover {
+            background-color: rgba(239, 68, 68, 0.25);
+        }
+
+        /* OTP Block */
+        .otp-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            text-align: center;
+        }
+
+        .otp-countdown {
+            color: var(--warning-color);
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .otp-code-input {
+            letter-spacing: 8px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            font-family: monospace;
+            padding-left: 18px!important;
+        }
+
+        /* Registration Success Card */
+        .success-hero {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 16px 0;
+        }
+
+        .success-circle {
+            width: 56px;
+            height: 56px;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid var(--success-color);
+            border-radius: 50%;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--success-color);
+            font-size: 24px;
+        }
+
+        .glow-code-panel {
+            background-color: rgba(11, 15, 25, 0.8);
+            border: 1px dashed var(--success-color);
+            border-radius: 12px;
+            padding: 16px;
+            width: 100%;
+            max-width: 280px;
+            margin: 16px auto;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .glow-code-panel:active {
+            transform: scale(0.97);
+        }
+
+        .glow-code {
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--success-color);
+            letter-spacing: 4px;
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+            margin: 6px 0;
+        }
+
+        .copied-hint {
+            font-size: 11px;
+            color: var(--success-color);
+            opacity: 0.8;
+        }
+
+        /* Database View and Item Rows */
+        .db-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .db-toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12.5px;
+            color: var(--text-muted);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 38px;
+            height: 22px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--border-color);
+            transition: .2s;
+            border-radius: 22px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .2s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent-cyan);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(16px);
+        }
+
+        .user-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .user-row {
+            background-color: rgba(18, 24, 38, 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 14px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .user-row.unlocked {
+            border-color: rgba(16, 185, 129, 0.3);
+            background-color: rgba(16, 185, 129, 0.02);
+        }
+
+        .user-row-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .row-id-badge {
+            background-color: var(--border-color);
+            color: var(--text-muted);
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 6px;
+        }
+
+        .row-code-badge {
+            background-color: rgba(6, 182, 212, 0.12);
+            color: var(--accent-cyan);
+            font-size: 11px;
+            font-weight: 800;
+            padding: 3px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+        }
+
+        .user-row-body {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .crypto-field {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .crypto-label {
+            font-size: 10.5px;
+            font-weight: 800;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+
+        .crypto-value {
+            font-size: 12px;
+            font-family: monospace;
+            word-break: break-all;
+            background: #090c14;
+            padding: 4px 8px;
+            border-radius: 6px;
+            color: var(--text-muted);
+            border: 1px solid rgba(255,255,255,0.02);
+        }
+
+        .crypto-value.decrypted {
+            color: var(--success-glow);
+            font-family: inherit;
+            font-size: 13.5px;
+            font-weight: 700;
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.15);
+        }
+
+        .row-actions {
+            margin-top: 10px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        /* Lookup Scanning animation */
+        .lookup-radar {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px 0;
+            gap: 12px;
+        }
+
+        .radar-ring {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 2px solid var(--accent-cyan);
+            position: relative;
+            animation: radar-sweep 1.5s linear infinite;
+        }
+
+        .radar-ring::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--accent-cyan);
+            top: 2px;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 10px var(--accent-cyan);
+        }
+
+        /* Success Lookup Result */
+        .match-card {
+            border: 1px solid var(--success-color);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(18, 24, 38, 0.8) 100%);
+            border-radius: 14px;
+            padding: 16px;
+            margin-top: 16px;
+            animation: scale-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .match-badge {
+            background-color: var(--success-color);
+            color: white;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            display: inline-block;
+            margin-bottom: 12px;
+        }
+
+        .match-grid {
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            row-gap: 10px;
+            column-gap: 8px;
+            font-size: 13.5px;
+        }
+
+        .match-label {
+            color: var(--text-muted);
+            font-weight: bold;
+        }
+
+        .match-val {
+            color: var(--text-main);
+            font-weight: 700;
+        }
+
+        .not-found-card {
+            border: 1px solid var(--error-color);
+            background: rgba(239, 68, 68, 0.05);
+            border-radius: 14px;
+            padding: 16px;
+            margin-top: 16px;
+            text-align: center;
+            color: var(--error-color);
+            font-size: 13.5px;
+            font-weight: bold;
+            animation: scale-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Bottom Status bar for applet context info */
+        footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #090c14;
+            border-top: 1px solid var(--border-color);
+            padding: 10px;
+            text-align: center;
+            font-size: 10.5px;
+            color: var(--text-muted);
+            font-weight: bold;
+            z-index: 50;
+        }
+
+        /* Animations */
+        @keyframes pulse-glow {
+            0%, 100% { transform: scale(1); opacity: 0.9; filter: drop-shadow(0 0 2px var(--accent-cyan)); }
+            50% { transform: scale(1.04); opacity: 1; filter: drop-shadow(0 0 10px var(--accent-cyan)); }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        @keyframes slide-down {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes scale-up {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes radar-sweep {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Empty state styling */
+        .empty-placeholder {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 40px 0;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-glow"></div>
+    <div class="ambient-glow-bottom"></div>
+
+    <header>
+        <div class="header-title-container">
+            <!-- Shield Vector SVG -->
+            <svg class="shield-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <h1>GUVENLI PORTAL</h1>
+        </div>
+        <div class="shield-status">AES-256 BAĞLI</div>
+    </header>
+
+    <main>
+        <!-- Floating SMS Broadcast Banner -->
+        <div id="smsBanner" class="sms-notification">
+            <div class="sms-header">
+                <div class="sms-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                        <polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                    YENİ SMS MESAJI
+                </div>
+                <div class="sms-time">Şimdi</div>
+            </div>
+            <div id="smsText" class="sms-text"></div>
+            <button id="smsCopyBtn" class="sms-action-btn">Kodu Kopyala ve Yapıştır</button>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('register')">
+                <span class="tab-icon">👤</span>
+                <span>Kayıt Ol</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('lookup')">
+                <span class="tab-icon">🔍</span>
+                <span>Bilgi Sorgula</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('database'); fetchDatabaseRecords();">
+                <span class="tab-icon">🗄️</span>
+                <span>Müfettiş DB</span>
+            </button>
+        </div>
+
+        <!-- Tab 1: Register Panel -->
+        <section id="tab-register" class="tab-section">
+            <div id="register-inputs-card" class="card">
+                <div class="card-title">
+                    <span>📝 Giriş ve Kayıt İşlemleri</span>
+                </div>
+                <p class="card-subtitle">Güvenli portal entegrasyonu için aşağıdaki bilgileri eksiksiz doldurun. Mobil verileriniz şifreli olarak saklanır.</p>
+                
+                <div id="register-error" class="error-message"></div>
+
+                <div class="form-group">
+                    <label>Adınız</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">👤</span>
+                        <input type="text" id="reg-firstname" class="input-control" placeholder="Örn: Ahmet" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Soyadınız</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">💼</span>
+                        <input type="text" id="reg-lastname" class="input-control" placeholder="Örn: Yılmaz" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Telefon Numarası</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">📞</span>
+                        <input type="tel" id="reg-phone" class="input-control" placeholder="Örn: 5551234567" required>
+                    </div>
+                </div>
+
+                <button class="btn-primary" onclick="startRegistrationFlow()">
+                    <span>🚀 Kayıt Ol & Kod Üret</span>
+                </button>
+            </div>
+
+            <!-- OTP Card (Hidden initially) -->
+            <div id="register-otp-card" class="card" style="display: none;">
+                <div class="card-title">
+                    <span>🗝️ SMS Sinyal Doğrulaması</span>
+                </div>
+                <p class="card-subtitle">Lütfen gelen 6 haneli doğrulama kodunu girerek kimlik işleminizi imzalayın.</p>
+
+                <div id="otp-error" class="error-message"></div>
+
+                <div class="otp-container">
+                    <div class="form-group" style="width: 100%;">
+                        <div class="input-wrapper">
+                            <span class="input-icon">🔐</span>
+                            <input type="text" id="otp-input" class="input-control otp-code-input" maxlength="6" placeholder="******">
+                        </div>
+                    </div>
+                    
+                    <div class="otp-countdown" id="otp-timer">Kalan Süre: 60 saniye</div>
+                    
+                    <button class="btn-primary" onclick="verifyOtpFlow()">
+                        <span>🔑 İmzala & Doğrulamayı Tamamla</span>
+                    </button>
+                    
+                    <p style="font-size: 12px; color: var(--text-muted); cursor: pointer; text-decoration: underline; margin-top: 8px;" onclick="resendOtp()">Kodu Tekrar Gönder</p>
+                    <p style="font-size: 11px; color: var(--text-muted); cursor: pointer; margin-top: 4px;" onclick="cancelRegistration()">Geri Dön</p>
+                </div>
+            </div>
+
+            <!-- Success Outcome Card (Hidden initially) -->
+            <div id="register-success-card" class="card" style="display: none;">
+                <div class="success-hero">
+                    <div class="success-circle">✓</div>
+                    <h2 style="font-size: 18px; margin-bottom: 8px;">Kayıt Güvenli Bir Şekilde Tamamlandı!</h2>
+                    <p class="card-subtitle" style="margin-bottom: 20px;">Bilgileriniz AES-256 CBC şifrelemesi ve SHA-256 phone hash (blind-indexing) ile Room veritabanına kaydedildi.</p>
+
+                    <div class="glow-code-panel" onclick="copyResultCode()">
+                        <div style="font-size: 10px; font-weight: bold; color: var(--text-muted); letter-spacing: 1px;">KİMLİK DOĞRULAMA SORGU KODUNUZ:</div>
+                        <div id="result-secure-code" class="glow-code">------</div>
+                        <div id="copy-hint" class="copied-hint">Paneli kopyalamak için dokunun</div>
+                    </div>
+
+                    <button class="btn-primary" onclick="switchTab('lookup')">
+                        <span>🔍 Kaydı Doğrulamaya Git</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 2: Secure Identity Lookup -->
+        <section id="tab-lookup" class="tab-section" style="display: none;">
+            <div class="card">
+                <div class="card-title">
+                    <span>🛡️ Güvenli Kimlik Sorgulama</span>
+                </div>
+                <p class="card-subtitle">E-Devlet altyapısıyla entegre şifreli kimlik doğrulaması. 5 haneli sorgu kodunuzu girerek ilgili kaydı decrypt edebilirsiniz.</p>
+
+                <div class="form-group">
+                    <label>Sorgu Kodu</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">🔐</span>
+                        <input type="number" id="lookup-code-input" class="input-control" placeholder="Örn: 12345" oninput="if(value.length>5)value=value.slice(0,5)" required>
+                    </div>
+                </div>
+
+                <button class="btn-primary" onclick="performLookupQuery()">
+                    <span>🔍 Şifreli Kaydı Çöz & Doğrula</span>
+                </button>
+
+                <!-- Search States -->
+                <div id="lookup-loading" style="display: none;">
+                    <div class="lookup-radar">
+                        <div class="radar-ring"></div>
+                        <div style="font-size: 12px; color: var(--accent-cyan); font-weight: bold;">Merkezi Güvenlik Katmanı Taranıyor...</div>
+                    </div>
+                </div>
+
+                <div id="lookup-success" style="display: none;"></div>
+                <div id="lookup-notfound" style="display: none;"></div>
+            </div>
+        </section>
+
+        <!-- Tab 3: Inspector DB Explorer -->
+        <section id="tab-database" class="tab-section" style="display: none;">
+            <div class="card">
+                <div class="db-header">
+                    <div>
+                        <h3 style="font-size: 15px; font-weight: bold;">⚙️ Müfettiş Veri Akışı izleyicisi</h3>
+                        <p style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">SQLite Veri Katmanının Ham ve Decrypt Edilmiş Hali</p>
+                    </div>
+                    <label class="db-toggle-container">
+                        <span>Şifreleri Çöz</span>
+                        <div class="switch">
+                            <input type="checkbox" id="decrypt-switch" onchange="toggleDecryptView()">
+                            <span class="slider"></span>
+                        </div>
+                    </label>
+                </div>
+
+                <div style="display: flex; gap: 8px; margin-bottom: 20px;">
+                    <button class="btn-primary" style="padding: 8px 12px; font-size: 11.5px;" onclick="fetchDatabaseRecords()">🔄 Güncelle</button>
+                    <button class="btn-danger" style="font-size: 11.5px; padding: 2px 12px;" onclick="clearDatabase()">🗑️ Tümünü Kaldır</button>
+                </div>
+
+                <div id="database-rows" class="user-list">
+                    <!-- Loaded dynamically via js -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        TURK-SHIELD HOLO-PORTAL © 2026 • AES-256 WITH SOLID SECURE BRIDGING
+    </footer>
+
+    <script>
+        // Tab Navigation
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-section').forEach(section => {
+                section.style.display = 'none';
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            document.getElementById('tab-' + tabId).style.display = 'block';
+            
+            // Highlight dynamic active tab button
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            if (tabId === 'register') tabButtons[0].classList.add('active');
+            else if (tabId === 'lookup') tabButtons[1].classList.add('active');
+            else if (tabId === 'database') tabButtons[2].classList.add('active');
+
+            // Reset lookups & errors when switching
+            resetErrors();
+        }
+
+        function resetErrors() {
+            document.getElementById('register-error').style.display = 'none';
+            document.getElementById('otp-error').style.display = 'none';
+        }
+
+        // Global state vars for client-side fallback if bridge not loaded
+        let localMockDatabase = [
+            { id: 1, secureCode: "12345", phoneHash: "7a87e8fd0117435f3dfd2d3a3915bc66cbbbd487fa21", encryptedFirstName: "AE_U2VjcmV0QWRfSW5pdA==", encryptedLastName: "AE_WWlsem1hekFzc2VydGlvbg==", encryptedPhone: "AE_NTU1MTAwMjAwMw==", timestamp: 1772424000000, decryptedFirst: "Ahmet", decryptedLast: "YILMAZ", decryptedPhone: "5551234567" },
+            { id: 2, secureCode: "54321", phoneHash: "3af7ced0dd29da1ea5d28b0f803c1bde5aefbd4a5214", encryptedFirstName: "AE_WmV5bmVwU2VjdXJlU2Vydg==", encryptedLastName: "AE_S2F5YURlY29kZXI=", encryptedPhone: "AE_NTA1OTg3NjU0Mw==", timestamp: 1772424300000, decryptedFirst: "Zeynep", decryptedLast: "KAYA", decryptedPhone: "5059876543" }
+        ];
+
+        let pendingRegistration = {
+            firstName: "",
+            lastName: "",
+            phone: "",
+            secureCode: "",
+            otp: ""
+        };
+
+        let timerInterval = null;
+        let countdownSecs = 60;
+
+        // Bridge detection
+        const hasAndroidBridge = typeof AndroidBridge !== 'undefined';
+
+        // Initialize empty input checks & fallback alert logs
+        console.log("Bridged Status Active:", hasAndroidBridge);
+
+        // SMS Notification Display Utility
+        function showSmsNotification(text, codeToInject) {
+            const banner = document.getElementById('smsBanner');
+            const smsText = document.getElementById('smsText');
+            const copyBtn = document.getElementById('smsCopyBtn');
+
+            smsText.textContent = text;
+            banner.style.display = 'block';
+
+            copyBtn.onclick = function() {
+                document.getElementById('otp-input').value = codeToInject;
+                banner.style.display = 'none';
+                if (hasAndroidBridge) {
+                    AndroidBridge.dismissToast();
+                }
+            };
+        }
+
+        // Trigger Android toast or browser console log
+        function alertPortalMessage(msg) {
+            if (hasAndroidBridge) {
+                AndroidBridge.showToastMessage(msg);
+            } else {
+                console.log("[Portal Message]:", msg);
+            }
+        }
+
+        // Workflow A: Start register
+        function startRegistrationFlow() {
+            const firstName = document.getElementById('reg-firstname').value.trim();
+            const lastName = document.getElementById('reg-lastname').value.trim();
+            const phone = document.getElementById('reg-phone').value.trim().replace(/\D/g,'');
+            const errorDiv = document.getElementById('register-error');
+
+            if (!firstName) {
+                errorDiv.textContent = "Ad alanı boş bırakılamaz.";
+                errorDiv.style.display = 'block';
+                return;
+            }
+            if (!lastName) {
+                errorDiv.textContent = "Soyad alanı boş bırakılamaz.";
+                errorDiv.style.display = 'block';
+                return;
+            }
+            if (phone.length < 10) {
+                errorDiv.textContent = "Telefon numarası geçersiz (en az 10 basamaklı olmalıdır).";
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            errorDiv.style.display = 'none';
+
+            // Random OTP generation
+            const generatedOtp = "" + (100000 + Math.floor(Math.random() * 900000));
+            const generatedCode = "" + (10000 + Math.floor(Math.random() * 90000));
+
+            pendingRegistration = {
+                firstName: firstName,
+                lastName: lastName.toUpperCase(),
+                phone: phone,
+                secureCode: generatedCode,
+                otp: generatedOtp
+            };
+
+            // Switch layout cards
+            document.getElementById('register-inputs-card').style.display = 'none';
+            document.getElementById('register-otp-card').style.display = 'block';
+
+            // Send notification
+            const smsMsg = "📞 [SMS ALINDI] TurkShield Portal Doğrulama Kodunuz: " + generatedOtp;
+            showSmsNotification(smsMsg, generatedOtp);
+            alertPortalMessage("Doğrulama kodu gönderildi!");
+
+            // Start clock timer
+            startOtpTimer();
+        }
+
+        function startOtpTimer() {
+            clearInterval(timerInterval);
+            countdownSecs = 60;
+            const timerLabel = document.getElementById('otp-timer');
+            timerLabel.innerText = "Kalan Süre: " + countdownSecs + " saniye";
+
+            timerInterval = setInterval(() => {
+                countdownSecs--;
+                if (countdownSecs <= 0) {
+                    clearInterval(timerInterval);
+                    timerLabel.innerText = "Doğrulama süresi doldu.";
+                } else {
+                    timerLabel.innerText = "Kalan Süre: " + countdownSecs + " saniye";
+                }
+            }, 1000);
+        }
+
+        function cancelRegistration() {
+            clearInterval(timerInterval);
+            document.getElementById('smsBanner').style.display = 'none';
+            document.getElementById('register-inputs-card').style.display = 'block';
+            document.getElementById('register-otp-card').style.display = 'none';
+        }
+
+        function resendOtp() {
+            const newOtp = "" + (100000 + Math.floor(Math.random() * 900005));
+            pendingRegistration.otp = newOtp;
+            const smsMsg = "📞 [SMS ALINDI (YENİ)] TurkShield Portal Doğrulama Kodunuz: " + newOtp;
+            showSmsNotification(smsMsg, newOtp);
+            startOtpTimer();
+            alertPortalMessage("Yeni kod gönderildi!");
+        }
+
+        // Workflow B: Complete Verification and persist
+        function verifyOtpFlow() {
+            const userOtp = document.getElementById('otp-input').value.trim();
+            const errorDiv = document.getElementById('otp-error');
+
+            if (userOtp !== pendingRegistration.otp) {
+                errorDiv.textContent = "Girdiğiniz SMS doğrulama kodu hatalı. Lütfen kontrol edin.";
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            errorDiv.style.display = 'none';
+            clearInterval(timerInterval);
+            document.getElementById('smsBanner').style.display = 'none';
+
+            // Commit user persist action
+            if (hasAndroidBridge) {
+                // Call Android bridge to save in Room DB with AES encryption
+                AndroidBridge.registerUser(
+                    pendingRegistration.firstName,
+                    pendingRegistration.lastName,
+                    pendingRegistration.phone,
+                    pendingRegistration.secureCode
+                );
+            } else {
+                // Browser Mock simulation
+                const mockEntity = {
+                    id: localMockDatabase.length + 1,
+                    secureCode: pendingRegistration.secureCode,
+                    phoneHash: "hash_" + pendingRegistration.phone,
+                    encryptedFirstName: "[AES_ENC_" + pendingRegistration.firstName + "]",
+                    encryptedLastName: "[AES_ENC_" + pendingRegistration.lastName + "]",
+                    encryptedPhone: "[AES_ENC_" + pendingRegistration.phone + "]",
+                    timestamp: Date.now(),
+                    decryptedFirst: pendingRegistration.firstName,
+                    decryptedLast: pendingRegistration.lastName,
+                    decryptedPhone: pendingRegistration.phone
+                };
+                localMockDatabase.push(mockEntity);
+            }
+
+            // Move to success presentation
+            document.getElementById('result-secure-code').textContent = pendingRegistration.secureCode;
+            document.getElementById('register-otp-card').style.display = 'none';
+            document.getElementById('register-success-card').style.display = 'block';
+
+            alertPortalMessage("Doğrulama başarılı! Kimlik şifrelendi.");
+        }
+
+        // Utility: Copy Result Code
+        function copyResultCode() {
+            const code = document.getElementById('result-secure-code').innerText;
+            const hint = document.getElementById('copy-hint');
+            
+            navigator.clipboard.writeText(code).then(() => {
+                hint.textContent = "Kopyalandı! Panoya Eklendi";
+                hint.style.color = "var(--success-glow)";
+                setTimeout(() => {
+                    hint.textContent = "Paneli kopyalamak için dokunun";
+                    hint.style.color = "var(--success-color)";
+                }, 2000);
+            }).catch(err => {
+                // Support Android WebView copy if Clipboard API block
+                if (hasAndroidBridge) {
+                    AndroidBridge.copyToClipboard(code);
+                    hint.textContent = "Kopyalandı (Android Portal)!";
+                    hint.style.color = "var(--success-glow)";
+                    setTimeout(() => {
+                        hint.textContent = "Paneli kopyalamak için dokunun";
+                        hint.style.color = "var(--success-color)";
+                    }, 2000);
+                }
+            });
+        }
+
+        // Workflow C: Bilgi Sorgula (Secure Identity lookup Query)
+        function performLookupQuery() {
+            const code = document.getElementById('lookup-code-input').value.trim();
+            const loading = document.getElementById('lookup-loading');
+            const successDiv = document.getElementById('lookup-success');
+            const notfoundDiv = document.getElementById('lookup-notfound');
+
+            if (code.length < 5) {
+                alertPortalMessage("Eksik kod girişi. Sorgu kodu 5 haneli olmalıdır.");
+                return;
+            }
+
+            // Hide previous results
+            successDiv.style.display = 'none';
+            notfoundDiv.style.display = 'none';
+            loading.style.display = 'block';
+
+            setTimeout(() => {
+                loading.style.display = 'none';
+
+                if (hasAndroidBridge) {
+                    // Pull in real-time decrypt lookup from Room DB via script bridge
+                    const resultJsonString = AndroidBridge.lookupUserBySecureCode(code);
+                    handleLookupResult(resultJsonString);
+                } else {
+                    // Mock local lookup
+                    const user = localMockDatabase.find(u => u.secureCode === code);
+                    if (user) {
+                        displayLookupSuccess(user.decryptedFirst, user.decryptedLast, user.decryptedPhone, user.secureCode, user.timestamp);
+                    } else {
+                        displayLookupNotFound();
+                    }
+                }
+            }, 600);
+        }
+
+        // Dynamic callback parser
+        function handleLookupResult(jsonString) {
+            if (!jsonString) {
+                displayLookupNotFound();
+                return;
+            }
+
+            try {
+                const user = JSON.parse(jsonString);
+                displayLookupSuccess(user.firstName, user.lastName, user.phone, user.secureCode, user.timestamp);
+            } catch (err) {
+                console.error("JSON parse error on lookup", err);
+                displayLookupNotFound();
+            }
+        }
+
+        function displayLookupSuccess(firstName, lastName, phone, secureCode, timestamp) {
+            const successDiv = document.getElementById('lookup-success');
+            const formattedDate = new Date(timestamp).toLocaleString('tr-TR');
+
+            successDiv.innerHTML = `
+                <div class="match-card">
+                    <span class="match-badge">GÜVENLİ EŞLEŞME TAMAMLANDI (KOD: ${secureCode})</span>
+                    <div class="match-grid">
+                        <div class="match-label">Durum:</div>
+                        <div class="match-val" style="color: var(--success-color);">✓ ŞİFRE ÇÖZÜLDÜ (AES-256)</div>
+                        
+                        <div class="match-label">Adınız:</div>
+                        <div class="match-val">${firstName}</div>
+
+                        <div class="match-label">Soyadınız:</div>
+                        <div class="match-val">${lastName}</div>
+
+                        <div class="match-label">Telefon:</div>
+                        <div class="match-val">${phone}</div>
+
+                        <div class="match-label">Tarih:</div>
+                        <div class="match-val" style="font-size: 11px; color: var(--text-muted);">${formattedDate}</div>
+                    </div>
+                </div>
+            `;
+            successDiv.style.display = 'block';
+        }
+
+        function displayLookupNotFound() {
+            const notfoundDiv = document.getElementById('lookup-notfound');
+            notfoundDiv.style.display = 'block';
+            notfoundDiv.innerHTML = `
+                <div class="not-found-card">
+                    🛑 Kayıt Bulunamadı
+                    <p style="font-size: 11.5px; color: var(--text-muted); font-weight: normal; margin-top: 4px;">Girdiğiniz sorgu koduyla eşleşen şifrelenmiş herhangi bir e-devlet kaydı mevcut değil.</p>
+                </div>
+            `;
+        }
+
+        // Workflow D: Müfettiş Veri Akışı izleyicisi (Database monitor)
+        let isDecryptedViewEnabled = false;
+
+        function toggleDecryptView() {
+            isDecryptedViewEnabled = document.getElementById('decrypt-switch').checked;
+            fetchDatabaseRecords();
+        }
+
+        function fetchDatabaseRecords() {
+            const container = document.getElementById('database-rows');
+            container.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 12px;">Güncelleniyor...</div>`;
+
+            setTimeout(() => {
+                if (hasAndroidBridge) {
+                    const recordsListJson = AndroidBridge.getAllUsersJson();
+                    renderDatabaseRows(recordsListJson);
+                } else {
+                    renderDatabaseRows(JSON.stringify(localMockDatabase));
+                }
+            }, 100);
+        }
+
+        function renderDatabaseRows(jsonString) {
+            const container = document.getElementById('database-rows');
+            container.innerHTML = '';
+
+            try {
+                const list = JSON.parse(jsonString || "[]");
+                if (list.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-placeholder">
+                            📭 Veritabanında Kayıtlı Kullanıcı Bulunmuyor.
+                        </div>
+                    `;
+                    return;
+                }
+
+                list.forEach(user => {
+                    const rowClass = isDecryptedViewEnabled ? 'user-row unlocked' : 'user-row';
+                    const firstNameMarkup = isDecryptedViewEnabled 
+                        ? `<div class="crypto-value decrypted">🔓 ${user.decryptedFirst || user.firstName}</div>`
+                        : `<div class="crypto-value">🔒 ${user.encryptedFirstName || user.firstName}</div>`;
+                    
+                    const lastNameMarkup = isDecryptedViewEnabled 
+                        ? `<div class="crypto-value decrypted">🔓 ${user.decryptedLast || user.lastName}</div>`
+                        : `<div class="crypto-value">🔒 ${user.encryptedLastName || user.lastName}</div>`;
+                    
+                    const phoneMarkup = isDecryptedViewEnabled 
+                        ? `<div class="crypto-value decrypted">🔓 ${user.decryptedPhone || user.phone}</div>`
+                        : `<div class="crypto-value">🔒 ${user.encryptedPhone || user.phone}</div>`;
+
+                    const row = document.createElement('div');
+                    row.className = rowClass;
+                    row.innerHTML = `
+                        <div class="user-row-header">
+                            <span class="row-id-badge">ID: ${user.id}</span>
+                            <span class="row-code-badge">KOD: ${user.secureCode}</span>
+                        </div>
+                        <div class="user-row-body">
+                            <div class="crypto-field">
+                                <span class="crypto-label">FIRST_NAME (AES-256)</span>
+                                ${firstNameMarkup}
+                            </div>
+                            <div class="crypto-field">
+                                <span class="crypto-label">LAST_NAME (AES-256)</span>
+                                ${lastNameMarkup}
+                            </div>
+                            <div class="crypto-field">
+                                <span class="crypto-label">PHONE_HASH (SHA-256 / BLIND INDEX)</span>
+                                <div class="crypto-value" style="font-size: 11px;"># ${user.phoneHash}</div>
+                            </div>
+                            <div class="crypto-field">
+                                <span class="crypto-label">PHONE_ENCRYPTED (AES-256)</span>
+                                ${phoneMarkup}
+                            </div>
+                        </div>
+                        <div class="row-actions">
+                            <button class="btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="deleteDatabaseRecord(${user.id})">Sil</button>
+                        </div>
+                    `;
+                    container.appendChild(row);
+                });
+            } catch (err) {
+                container.innerHTML = `<div style="color: var(--error-color); padding: 10px; font-size:12px;">Hata oluştu: ${err.message}</div>`;
+            }
+        }
+
+        function deleteDatabaseRecord(id) {
+            if (confirm("Seçilen güvenli kaydı veri katmanından kalıcı olarak silmek istediğinize emin misiniz?")) {
+                if (hasAndroidBridge) {
+                    AndroidBridge.deleteUser(id);
+                } else {
+                    localMockDatabase = localMockDatabase.filter(u => u.id !== id);
+                }
+                alertPortalMessage("Kayıt kaldırıldı.");
+                fetchDatabaseRecords();
+            }
+        }
+
+        function clearDatabase() {
+            if (confirm("Tüm veri katmanını sıfırlamak istediğinize emin misiniz?")) {
+                if (hasAndroidBridge) {
+                    AndroidBridge.clearDatabase();
+                } else {
+                    localMockDatabase = [];
+                }
+                alertPortalMessage("Veritabanı temizlendi.");
+                fetchDatabaseRecords();
+            }
+        }
+
+        // Bridge notification receiver interface invoked from Kotlin
+        function onDatabaseUpdated() {
+            fetchDatabaseRecords();
+        }
+
+        // Call database fetching initially
+        fetchDatabaseRecords();
+    </script>
+</body>
+</html>
